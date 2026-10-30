@@ -1,0 +1,13 @@
+first:
+  llm_model: opencode/glm-5.3-flash-free
+  jev_model: jev-1.13-free
+  created_at: <%= 1.hour.ago.to_fs(:db) %>
+  summary:
+    jev: { runs: 1, failures: 0, avg_wall_ms: 400, avg_model_ms: 400, avg_input_tokens: 300, avg_net_input_tokens: 300, avg_output_tokens: 0, total_tokens: 300, unparsed: 0, agreement: { department: 1.0, urgent: 1.0, severity: 1.0 } }
+    llm: { runs: 1, failures: 0, avg_wall_ms: 6000, avg_model_ms: 4000, avg_input_tokens: 7800, avg_net_input_tokens: 350, avg_output_tokens: 120, total_tokens: 7920, unparsed: 0, agreement: { department: 1.0, urgent: 1.0, severity: 0.0 } }
+    baseline: { input_tokens: 7450, output_tokens: 3, wall_ms: 4800, model_ms: 3100 }
+  results:
+    - body: O checkout está fora do ar
+      expected: { department: technical, urgent: true, severity: critical }
+      jev: { ok: true, wall_ms: 400, model_ms: 400, input_tokens: 300, output_tokens: 0, reasoning_tokens: 0, prediction: { department: technical, urgent: true, severity: critical }, matches: { department: true, urgent: true, severity: true } }
+      llm: { ok: true, wall_ms: 6000, model_ms: 4000, input_tokens: 7800, net_input_tokens: 350, output_tokens: 20, reasoning_tokens: 100, prediction: { department: technical, urgent: true, severity: major }, matches: { department: true, urgent: true, severity: false } }

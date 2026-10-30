@@ -1,0 +1,76 @@
+<% content_for :title, "Chamados anteriores · Triagem" %>
+
+<div class="mb-8 flex items-start justify-between gap-4">
+  <div>
+    <h1 class="text-3xl font-semibold tracking-tight">Chamados anteriores</h1>
+    <p class="mt-2 text-slate-600 dark:text-slate-400">Tudo o que já passou pela triagem, do mais recente ao mais antigo.</p>
+  </div>
+  <%= link_to "Novo chamado", new_ticket_path,
+        class: "shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500" %>
+</div>
+
+<% if @tickets.empty? %>
+  <div class="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-16 text-center">
+    <p class="font-medium text-slate-700 dark:text-slate-300">Nenhum chamado ainda.</p>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Os chamados aparecem aqui depois da triagem.</p>
+  </div>
+<% else %>
+  <ul class="divide-y divide-slate-200 dark:divide-slate-800 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+    <% @tickets.each do |ticket| %>
+      <li>
+        <%= link_to ticket, class: "block px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800", data: { ticket_id: ticket.id } do %>
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-sm">
+                <span class="font-semibold text-slate-900 dark:text-slate-100"><%= department_name(ticket.department) %></span>
+                <span class="text-slate-400 dark:text-slate-500">·</span>
+                <span class="text-slate-500 dark:text-slate-400">#<%= ticket.id %></span>
+                <% unless ticket.certain? %>
+                  <span class="rounded-full bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/30">Revisar</span>
+                <% end %>
+              </div>
+              <p class="mt-1 truncate text-sm text-slate-600 dark:text-slate-400"><%= ticket.body %></p>
+            </div>
+            <div class="flex shrink-0 flex-col items-end gap-2">
+              <div class="flex gap-2">
+                <% if ticket.urgent? %><%= urgent_badge(true) %><% end %>
+                <%= severity_badge(ticket.severity) %>
+              </div>
+              <time class="text-xs text-slate-400 dark:text-slate-500" datetime="<%= ticket.created_at.iso8601 %>">
+                <%= l(ticket.created_at, format: "%d/%m/%Y %H:%M") %>
+              </time>
+            </div>
+          </div>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+
+  <% first = (@page - 1) * Ticket::PER_PAGE + 1 %>
+  <nav class="mt-6 flex items-center justify-between gap-4 text-sm" aria-label="Paginação">
+    <p class="text-slate-500 dark:text-slate-400">
+      Mostrando <span class="font-medium text-slate-700 dark:text-slate-300"><%= first %>–<%= first + @tickets.size - 1 %></span>
+      de <span class="font-medium text-slate-700 dark:text-slate-300"><%= @total %></span>
+    </p>
+
+    <% if @page_count > 1 %>
+      <% link_classes = "rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 font-medium text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800" %>
+      <% disabled_classes = "rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-1.5 font-medium text-slate-300 dark:text-slate-600" %>
+      <div class="flex items-center gap-2">
+        <% if @page > 1 %>
+          <%= link_to "← Anterior", tickets_path(page: @page - 1), class: link_classes, rel: "prev" %>
+        <% else %>
+          <span class="<%= disabled_classes %>">← Anterior</span>
+        <% end %>
+
+        <span class="px-2 text-slate-500 dark:text-slate-400" data-page="<%= @page %>">Página <%= @page %> de <%= @page_count %></span>
+
+        <% if @page < @page_count %>
+          <%= link_to "Próxima →", tickets_path(page: @page + 1), class: link_classes, rel: "next" %>
+        <% else %>
+          <span class="<%= disabled_classes %>">Próxima →</span>
+        <% end %>
+      </div>
+    <% end %>
+  </nav>
+<% end %>

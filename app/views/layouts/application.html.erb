@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark h-full scheme-dark">
+  <head>
+    <title><%= content_for(:title) || "Triagem" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Triagem">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
+    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%# Includes all stylesheet files in app/assets/stylesheets %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="min-h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased">
+    <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur">
+      <div class="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
+        <%= link_to root_path, class: "flex items-center gap-2" do %>
+          <span class="flex size-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">T</span>
+          <span class="font-semibold tracking-tight">Triagem</span>
+        <% end %>
+        <nav class="flex items-center gap-5 text-sm font-medium text-slate-600 dark:text-slate-400">
+          <%= link_to "Novo chamado", new_ticket_path, class: "hover:text-slate-900 dark:hover:text-white" %>
+          <%= link_to "Chamados anteriores", tickets_path, class: "hover:text-slate-900 dark:hover:text-white" %>
+          <%= link_to "Benchmark", benchmarks_path, class: "hover:text-slate-900 dark:hover:text-white" %>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-3xl px-6 py-12">
+      <%= yield %>
+    </main>
+  </body>
+</html>

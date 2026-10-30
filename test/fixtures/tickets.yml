@@ -1,0 +1,34 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+checkout_down:
+  body: O checkout está fora do ar para todos os clientes
+  department: technical
+  department_confidence: 0.92
+  urgent: true
+  urgency: 0.97
+  severity: critical
+  severity_score: 2.9
+  certain: true
+  answered_by: jev-1.13-free
+  analysis:
+    questions:
+      urgent: { type: noul, value: 0.97, probabilities: { "true": 0.97, "false": 0.03 }, certainty: 0.94, threshold: 0.75, margin: 0.19, certain: true }
+      department: { type: choice, value: technical, probabilities: { billing: 0.03, technical: 0.92, sales: 0.05 }, confidence: 0.92, certainty: 0.92, threshold: 0.8, margin: 0.12, certain: true }
+      severity: { type: score, value: 2.9, probabilities: { trivial: 0.0, minor: 0.02, major: 0.06, critical: 0.92 }, confidence: 0.92, certainty: 0.92, threshold: 0.6, margin: 0.32, certain: true }
+    uncertain_questions: []
+    confidence_threshold:
+    input_tokens: 312
+    output_tokens: 0
+    estimated_tokens: 160
+    payload: { model: jev-1.13-free, state: O checkout está fora do ar para todos os clientes }
+
+double_charge:
+  body: Fui cobrado duas vezes na fatura de outubro
+  department: billing
+  department_confidence: 0.85
+  urgent: false
+  urgency: 0.43
+  severity: minor
+  severity_score: 1.2
+  certain: false
+  answered_by: jev-1.13-free

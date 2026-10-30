@@ -1,0 +1,161 @@
+<% content_for :title, "Chamado ##{@ticket.id} · Triagem" %>
+
+<% confidence = (@ticket.department_confidence.to_f * 100).round %>
+
+<div class="mb-8 flex items-start justify-between gap-4">
+  <div>
+    <%= link_to "← Chamados anteriores", tickets_path, class: "text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300" %>
+    <h1 class="mt-2 text-3xl font-semibold tracking-tight">Chamado #<%= @ticket.id %></h1>
+    <p class="mt-2 text-slate-600 dark:text-slate-400">
+      Triado em <%= l(@ticket.created_at, format: "%d/%m/%Y às %H:%M") %>
+    </p>
+  </div>
+  <%= link_to "Novo chamado", new_ticket_path,
+        class: "shrink-0 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800" %>
+</div>
+
+<% unless @ticket.certain? %>
+  <div class="mb-6 flex gap-3 rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200" role="status">
+    <span aria-hidden="true">⚠</span>
+    <p>O modelo não teve confiança suficiente neste chamado. Envie para revisão humana.</p>
+  </div>
+<% end %>
+
+<dl class="grid gap-4 sm:grid-cols-3">
+  <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+    <dt class="text-xs font-medium tracking-wide text-slate-500 dark:text-slate-400 uppercase">Departamento</dt>
+    <dd class="mt-2 text-xl font-semibold" data-field="department"><%= department_name(@ticket.department) %></dd>
+    <div class="mt-4">
+      <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+        <span>Confiança</span>
+        <span><%= confidence %>%</span>
+      </div>
+      <div class="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
+        <div class="h-1.5 rounded-full bg-indigo-600" style="width: <%= confidence %>%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+    <dt class="text-xs font-medium tracking-wide text-slate-500 dark:text-slate-400 uppercase">Urgente</dt>
+    <dd class="mt-2" data-field="urgent"><%= urgent_badge(@ticket.urgent?) %></dd>
+  </div>
+
+  <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+    <dt class="text-xs font-medium tracking-wide text-slate-500 dark:text-slate-400 uppercase">Gravidade</dt>
+    <dd class="mt-2" data-field="severity"><%= severity_badge(@ticket.severity) %></dd>
+  </div>
+</dl>
+
+<% if @ticket.analysis_questions.any? %>
+  <section class="mt-10">
+    <div class="flex items-baseline justify-between gap-4">
+      <h2 class="text-lg font-semibold tracking-tight">Detalhes da análise</h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400">
+        Rigor:
+        <% if (floor = @ticket.analysis["confidence_threshold"]) %>
+          <%= percent(floor) %> em todas as perguntas
+        <% else %>
+          padrão, mínimo por pergunta
+        <% end %>
+      </p>
+    </div>
+
+    <div class="mt-4 grid gap-4">
+      <% @ticket.analysis_questions.each do |name, details| %>
+        <article class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm" data-question="<%= name %>">
+          <header class="flex items-center justify-between gap-4">
+            <h3 class="font-semibold"><%= question_name(name) %></h3>
+            <% if details["certain"] %>
+              <span class="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/30">Confiante</span>
+            <% else %>
+              <span class="rounded-full bg-amber-50 dark:bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/30">Abaixo do mínimo</span>
+            <% end %>
+          </header>
+
+          <ul class="mt-4 space-y-2">
+            <% probability_rows(name, details).each do |label, probability, top| %>
+              <li class="grid grid-cols-[8rem_1fr_3rem] items-center gap-3 text-sm">
+                <span class="truncate <%= top ? "font-semibold text-slate-900 dark:text-slate-100" : "text-slate-600 dark:text-slate-400" %>"><%= label %></span>
+                <span class="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                  <span class="block h-2 rounded-full <%= top ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-600" %>" style="width: <%= (probability * 100).round(1) %>%"></span>
+                </span>
+                <span class="text-right tabular-nums text-slate-600 dark:text-slate-400"><%= percent(probability) %></span>
+              </li>
+            <% end %>
+          </ul>
+
+          <dl class="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 dark:border-slate-800 pt-4 text-sm sm:grid-cols-4">
+            <div>
+              <dt class="text-xs text-slate-500 dark:text-slate-400"><%= details["type"] == "noul" ? "Certeza" : "Confiança" %></dt>
+              <dd class="mt-0.5 font-medium tabular-nums"><%= percent(details["certainty"]) %></dd>
+            </div>
+            <div>
+              <dt class="text-xs text-slate-500 dark:text-slate-400">Mínimo exigido</dt>
+              <dd class="mt-0.5 font-medium tabular-nums"><%= percent(details["threshold"]) %></dd>
+            </div>
+            <div>
+              <dt class="text-xs text-slate-500 dark:text-slate-400">Margem</dt>
+              <dd class="mt-0.5 font-medium tabular-nums <%= details["margin"].to_f.negative? ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400" %>"><%= margin(details["margin"]) %></dd>
+            </div>
+            <div>
+              <dt class="text-xs text-slate-500 dark:text-slate-400">Valor bruto</dt>
+              <dd class="mt-0.5 font-medium tabular-nums">
+                <%= details["value"].is_a?(Numeric) ? details["value"].round(2) : option_name(name, details["value"]) %>
+              </dd>
+            </div>
+          </dl>
+
+          <% if details["type"] == "noul" %>
+            <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+              Para sim/não, a certeza mede o quanto a probabilidade se afasta de 50%.
+            </p>
+          <% elsif details["type"] == "score" %>
+            <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+              O valor bruto é a média ponderada dos níveis (0 = trivial, 3 = crítica). A gravidade exibida é o nível mais próximo.
+            </p>
+          <% end %>
+        </article>
+      <% end %>
+    </div>
+
+    <div class="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 text-sm shadow-sm">
+      <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div>
+          <dt class="text-xs text-slate-500 dark:text-slate-400">Modelo</dt>
+          <dd class="mt-0.5 font-medium"><%= @ticket.answered_by %></dd>
+        </div>
+        <div>
+          <dt class="text-xs text-slate-500 dark:text-slate-400">Tokens de entrada</dt>
+          <dd class="mt-0.5 font-medium tabular-nums"><%= @ticket.analysis["input_tokens"] %></dd>
+        </div>
+        <div>
+          <dt class="text-xs text-slate-500 dark:text-slate-400">Tokens de saída</dt>
+          <dd class="mt-0.5 font-medium tabular-nums"><%= @ticket.analysis["output_tokens"] %></dd>
+        </div>
+        <div>
+          <dt class="text-xs text-slate-500 dark:text-slate-400">Tokens estimados</dt>
+          <dd class="mt-0.5 font-medium tabular-nums"><%= @ticket.analysis["estimated_tokens"] %></dd>
+        </div>
+      </dl>
+
+      <% if @ticket.analysis["payload"] %>
+        <details class="group mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+          <summary class="cursor-pointer text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">
+            Ver requisição enviada ao Jev
+          </summary>
+          <pre class="mt-3 max-h-96 overflow-auto rounded-xl bg-slate-900 dark:bg-black/40 p-4 text-xs leading-relaxed text-slate-100"><%= JSON.pretty_generate(@ticket.analysis["payload"]) %></pre>
+        </details>
+      <% end %>
+    </div>
+  </section>
+<% end %>
+
+<section class="mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+  <h2 class="text-xs font-medium tracking-wide text-slate-500 dark:text-slate-400 uppercase">Mensagem</h2>
+  <p class="mt-3 whitespace-pre-line text-slate-700 dark:text-slate-300"><%= @ticket.body %></p>
+</section>
+
+<% if @ticket.answered_by && @ticket.analysis_questions.empty? %>
+  <p class="mt-4 text-right text-xs text-slate-400 dark:text-slate-500">Respondido por <%= @ticket.answered_by %></p>
+<% end %>

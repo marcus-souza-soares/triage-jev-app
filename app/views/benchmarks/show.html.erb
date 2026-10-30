@@ -1,0 +1,151 @@
+<% content_for :title, "Benchmark · Triagem" %>
+
+<%
+  jev = @run.summary["jev"]
+  llm = @run.summary["llm"]
+  baseline = @run.summary["baseline"]
+  card = "rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm"
+  label = "text-xs font-medium tracking-wide text-slate-500 dark:text-slate-400 uppercase"
+  metrics = [
+    [ "Tempo médio por chamado", "avg_wall_ms", :milliseconds, "Do envio até a resposta, medido no app." ],
+    [ "Tempo médio no modelo", "avg_model_ms", :milliseconds, "Sem a inicialização do opencode." ],
+    [ "Tokens de entrada (média)", "avg_input_tokens", :token_count, "Tudo o que foi enviado ao modelo." ],
+    [ "Tokens de saída (média)", "avg_output_tokens", :token_count, "Inclui tokens de raciocínio da LLM." ]
+  ]
+%>
+
+<div class="mb-8">
+  <h1 class="text-3xl font-semibold tracking-tight">Jev × LLM</h1>
+  <p class="mt-2 text-slate-600 dark:text-slate-400">
+    Os mesmos <%= @run.results.size %> chamados triados pelo
+    <span class="font-medium text-slate-900 dark:text-slate-100"><%= @run.jev_model %></span> e pelo
+    <span class="font-medium text-slate-900 dark:text-slate-100"><%= @run.llm_model %></span><% if (effort = @run.summary.dig("llm_options", "reasoning_effort")) %> (raciocínio <%= effort %>)<% end %>, com as mesmas perguntas.
+  </p>
+  <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+    Rodado em <%= l(@run.created_at, format: "%d/%m/%Y às %H:%M") %>
+  </p>
+</div>
+
+<div class="grid gap-4 sm:grid-cols-2">
+  <% metrics.each do |title, key, formatter, hint| %>
+    <section class="<%= card %>" data-metric="<%= key %>">
+      <h2 class="<%= label %>"><%= title %></h2>
+      <div class="mt-4 space-y-3">
+        <% [ [ "Jev", jev, "bg-indigo-500" ], [ "LLM", llm, "bg-slate-400 dark:bg-slate-500" ] ].each do |name, side, color| %>
+          <div>
+            <div class="flex items-baseline justify-between text-sm">
+              <span class="font-medium"><%= name %></span>
+              <span class="tabular-nums"><%= send(formatter, side[key]) %></span>
+            </div>
+            <div class="mt-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+              <div class="h-2 rounded-full <%= color %>" style="width: <%= bar_width(side[key], (side == jev ? llm : jev)[key]) %>%"></div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+      <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+        <% if (ratio = times_larger(llm[key], jev[key])) %>
+          LLM: <span class="font-semibold text-slate-700 dark:text-slate-300"><%= ratio %></span> o Jev.
+        <% end %>
+        <%= hint %>
+      </p>
+    </section>
+  <% end %>
+</div>
+
+<% if baseline %>
+<section class="<%= card %> mt-4">
+  <h2 class="<%= label %>">Custo fixo do opencode</h2>
+  <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">
+    A LLM gratuita só roda pelo <code>opencode run</code>, que envia o próprio prompt de sistema e as ferramentas em toda chamada.
+    Uma chamada vazia ("ok") gastou <span class="font-semibold text-slate-900 dark:text-slate-100"><%= token_count(baseline["input_tokens"]) %> tokens de entrada</span>
+    e levou <%= milliseconds(baseline["wall_ms"]) %>. Descontando isso, a LLM usou em média
+    <span class="font-semibold text-slate-900 dark:text-slate-100" data-metric="avg_net_input_tokens"><%= token_count(llm["avg_net_input_tokens"]) %> tokens de entrada</span>
+    por chamado, contra <%= token_count(jev["avg_input_tokens"]) %> do Jev.
+  </p>
+</section>
+<% end %>
+
+<section class="<%= card %> mt-4">
+  <h2 class="<%= label %>">Concordância com o gabarito</h2>
+  <table class="mt-4 w-full text-sm">
+    <thead class="text-left text-xs text-slate-500 dark:text-slate-400">
+      <tr><th class="pb-2 font-medium"></th><th class="pb-2 font-medium">Departamento</th><th class="pb-2 font-medium">Urgência</th><th class="pb-2 font-medium">Gravidade</th><th class="pb-2 font-medium">Falhas</th></tr>
+    </thead>
+    <tbody class="tabular-nums">
+      <% [ [ "Jev", jev ], [ "LLM", llm ] ].each do |name, side| %>
+        <tr class="border-t border-slate-100 dark:border-slate-800">
+          <td class="py-2 font-medium"><%= name %></td>
+          <% %w[department urgent severity].each do |key| %>
+            <td class="py-2"><%= percent(side.dig("agreement", key)) %></td>
+          <% end %>
+          <td class="py-2"><%= side["failures"].to_i + side["unparsed"].to_i %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+    O gabarito foi rotulado à mão e serve de referência, não de verdade absoluta. "Falhas" conta erros e respostas que não eram JSON válido.
+  </p>
+</section>
+
+<section class="mt-10">
+  <h2 class="text-lg font-semibold tracking-tight">Chamado a chamado</h2>
+  <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+    <table class="w-full min-w-[44rem] text-sm">
+      <thead class="bg-slate-50 dark:bg-slate-950/40 text-left text-xs text-slate-500 dark:text-slate-400">
+        <tr>
+          <th class="px-4 py-3 font-medium">Chamado</th>
+          <th class="px-4 py-3 font-medium">Resposta</th>
+          <th class="px-4 py-3 text-right font-medium">Tempo</th>
+          <th class="px-4 py-3 text-right font-medium">Tokens (entrada / saída)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @run.results.each do |row| %>
+          <% [ [ "Jev", row["jev"] ], [ "LLM", row["llm"] ] ].each_with_index do |(name, side), index| %>
+            <tr class="<%= index.zero? ? "border-t border-slate-200 dark:border-slate-800" : "" %>">
+              <% if index.zero? %>
+                <td class="max-w-56 px-4 py-2 align-top text-slate-600 dark:text-slate-400" rowspan="2">
+                  <p class="line-clamp-3" title="<%= row["body"] %>"><%= row["body"] %></p>
+                </td>
+              <% end %>
+              <td class="px-4 py-2">
+                <span class="mr-2 inline-block w-8 text-xs font-semibold text-slate-500 dark:text-slate-400"><%= name %></span>
+                <%= prediction_cell(side, row["expected"]) %>
+              </td>
+              <td class="px-4 py-2 text-right tabular-nums"><%= milliseconds(side["wall_ms"]) %></td>
+              <td class="px-4 py-2 text-right tabular-nums">
+                <%= token_count(side["input_tokens"]) %> / <%= token_count(side["output_tokens"].to_i + side["reasoning_tokens"].to_i) if side["ok"] %>
+              </td>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+    Respostas riscadas em vermelho divergem do gabarito.
+  </p>
+</section>
+
+<% if @previous_runs.any? %>
+  <section class="mt-10">
+    <h2 class="text-lg font-semibold tracking-tight">Rodadas anteriores</h2>
+    <ul class="mt-4 divide-y divide-slate-200 dark:divide-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm shadow-sm">
+      <% @previous_runs.each do |run| %>
+        <li>
+          <%= link_to benchmark_path(run), class: "flex justify-between px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-800" do %>
+            <span><%= run.jev_model %> × <%= run.llm_model %></span>
+            <span class="text-slate-500 dark:text-slate-400"><%= l(run.created_at, format: "%d/%m/%Y %H:%M") %></span>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>
+
+<p class="mt-8 text-xs text-slate-500 dark:text-slate-400">
+  Para rodar de novo: <code class="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5">bin/rails benchmark:triage</code>
+  (outro modelo: <code class="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5">LLM=opencode/outro-modelo bin/rails benchmark:triage</code>).
+</p>
